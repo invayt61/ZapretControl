@@ -142,7 +142,11 @@ public sealed class TelegramProxyService
         Add("--port", root.GetProperty("port").GetInt32().ToString());
         Add("--secret", root.GetProperty("secret").GetString()!);
         if (root.TryGetProperty("dc_ip", out var dcIp) && dcIp.ValueKind == JsonValueKind.Array)
+        {
+            if (dcIp.GetArrayLength() == 0) startInfo.ArgumentList.Add("--dc-ip");
             foreach (var item in dcIp.EnumerateArray()) Add("--dc-ip", item.GetString() ?? "");
+        }
+        if (root.TryGetProperty("fake_tls_domain", out var fakeTls) && !string.IsNullOrWhiteSpace(fakeTls.GetString())) Add("--fake-tls-domain", fakeTls.GetString()!);
         if (root.TryGetProperty("buf_kb", out var buffer)) Add("--buf-kb", buffer.GetInt32().ToString());
         if (root.TryGetProperty("pool_size", out var pool)) Add("--pool-size", pool.GetInt32().ToString());
         if (root.TryGetProperty("cfproxy", out var cfProxy) && !cfProxy.GetBoolean()) startInfo.ArgumentList.Add("--no-cfproxy");

@@ -356,7 +356,11 @@ public sealed class MainViewModel : ViewModelBase
         if (!Settings.AutoStart) await _zapret.DeleteServiceAsync();
         _strategies.ApplySettings(Settings);
         if (shouldRun && SelectedStrategy != null) await _zapret.StartAsync(SelectedStrategy, Settings);
-        if (restartProxy) await _telegramProxy.StartAsync(Settings);
+        if (restartProxy)
+        {
+            await EnsureTelegramProxyInstalledAsync();
+            await _telegramProxy.StartAsync(Settings);
+        }
         RefreshRunningStatus();
         OnPropertyChanged(nameof(TelegramProxyStatusDescription));
         _log.Info("Настройки сохранены.");
