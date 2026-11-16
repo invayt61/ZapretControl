@@ -28,11 +28,13 @@ jobs:
 
       - name: Check existing engine release
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY | Out-Null
-          if ($LASTEXITCODE -eq 0) { "RELEASE_EXISTS=true" | Out-File -FilePath $env:GITHUB_ENV -Append }
+          try {
+            Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" -Headers @{ 'User-Agent' = 'ZapretControl' } | Out-Null
+            "RELEASE_EXISTS=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } catch {
+            if ($_.Exception.Response.StatusCode -ne 404) { throw }
+          }
 
       - uses: actions/setup-python@v5
         if: env.RELEASE_EXISTS != 'true'
