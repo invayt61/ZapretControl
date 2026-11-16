@@ -40,7 +40,6 @@ jobs:
         if: env.RELEASE_EXISTS != 'true'
         with:
           python-version: '3.11'
-          cache: pip
 
       - name: Download upstream source
         if: env.RELEASE_EXISTS != 'true'
