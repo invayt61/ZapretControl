@@ -1,0 +1,63 @@
+name: Build integrated TG WS Proxy
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 7 * * *'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-tg-ws-proxy.yml'
+      - 'integration/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve latest upstream release
+        shell: pwsh
+        run: |
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Flowseal/tg-ws-proxy/releases/latest' -Headers @{ 'User-Agent' = 'ZapretControl' }
+          "UPSTREAM_TAG=$($release.tag_name)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "RELEASE_TAG=tg-ws-proxy-$($release.tag_name)" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Check existing engine release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY | Out-Null
+          if ($LASTEXITCODE -eq 0) { "RELEASE_EXISTS=true" | Out-File -FilePath $env:GITHUB_ENV -Append }
+
+      - uses: actions/setup-python@v5
+        if: env.RELEASE_EXISTS != 'true'
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Download upstream source
+        if: env.RELEASE_EXISTS != 'true'
+        run: git clone --depth 1 --branch $env:UPSTREAM_TAG https://github.com/Flowseal/tg-ws-proxy.git upstream
+
+      - name: Install dependencies
+        if: env.RELEASE_EXISTS != 'true'
+        run: pip install ./upstream pyinstaller==6.13.0
+
+      - name: Build headless engine
+        if: env.RELEASE_EXISTS != 'true'
+        run: |
+          Copy-Item integration/TgWsProxyHeadless.py upstream/zapret_tg_ws_proxy.py
+          Copy-Item integration/TgWsProxyHeadless.spec upstream/packaging/TgWsProxyHeadless.spec
+          pyinstaller upstream/packaging/TgWsProxyHeadless.spec --noconfirm --distpath dist --workpath build
+
+      - name: Publish engine release
+        if: env.RELEASE_EXISTS != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create $env:RELEASE_TAG dist/TgWsProxy.exe --repo $env:GITHUB_REPOSITORY --target main --title "Integrated TG WS Proxy $env:UPSTREAM_TAG" --notes "Фоновый движок без отдельного окна и значка в трее. Собран из официального релиза https://github.com/Flowseal/tg-ws-proxy/releases/tag/$env:UPSTREAM_TAG (MIT)."

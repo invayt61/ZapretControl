@@ -96,11 +96,12 @@ public partial class App : System.Windows.Application
                     throw new InvalidDataException("Встроенная проверка обновлений Telegram-прокси не отключена.");
                 const int testPort = 21443;
                 const string testSecret = "00112233445566778899aabbccddeeff";
+                settings.TelegramProxyPort = testPort;
                 await File.WriteAllTextAsync(proxy.ConfigPath, $"{{\"host\":\"127.0.0.1\",\"port\":{testPort},\"secret\":\"{testSecret}\",\"check_updates\":false}}");
                 await File.WriteAllTextAsync(Path.Combine(proxy.DataPath, ".first_run_done_mtproto"), "");
                 try
                 {
-                    await proxy.StartAsync();
+                    await proxy.StartAsync(settings);
                     if (!proxy.IsRunning) throw new InvalidOperationException("Процесс Telegram-прокси не найден после запуска.");
                     using (var connection = new System.Net.Sockets.TcpClient()) await connection.ConnectAsync("127.0.0.1", testPort);
                     var expectedUrl = $"tg://proxy?server=127.0.0.1&port={testPort}&secret=dd{testSecret}";

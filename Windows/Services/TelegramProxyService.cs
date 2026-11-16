@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ZapretControl.Models;
 
 namespace ZapretControl.Services;
 
@@ -20,8 +23,11 @@ public sealed class TelegramProxyService
     public string ExecutablePath => Path.Combine(RootPath, "TgWsProxy.exe");
     public string DataPath => Path.Combine(RootPath, "TgWsProxy_data");
     public string ConfigPath => Path.Combine(DataPath, "config.json");
+    public string LogPath => Path.Combine(DataPath, "proxy.log");
     public string VersionPath => Path.Combine(RootPath, "version.txt");
+    public string IntegratedMarkerPath => Path.Combine(RootPath, "integrated-engine.marker");
     public bool IsInstalled => File.Exists(ExecutablePath);
+    public bool IsIntegrated => File.Exists(IntegratedMarkerPath);
 
     public bool IsRunning
     {
@@ -47,24 +53,33 @@ public sealed class TelegramProxyService
         return IsInstalled ? "неизвестно" : "не установлен";
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(AppSettings settings)
     {
         if (IsRunning) return;
-        if (!IsInstalled) throw new FileNotFoundException("Telegram-прокси не установлен.", ExecutablePath);
-        PrepareConfiguration();
+        if (!IsInstalled || !IsIntegrated) throw new FileNotFoundException("Интегрированный Telegram-прокси не установлен.", ExecutablePath);
+        PrepareConfiguration(settings.TelegramProxyPort);
         var startInfo = new ProcessStartInfo
         {
             FileName = ExecutablePath,
             WorkingDirectory = RootPath,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8
         };
-        startInfo.ArgumentList.Add("--portable");
-        var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Не удалось запустить TgWsProxy.exe.");
+        AddConfigurationArguments(startInfo);
+        var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Не удалось запустить Telegram-прокси.");
+        process.EnableRaisingEvents = true;
+        process.OutputDataReceived += (_, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) _log.Info("Telegram: " + e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) _log.Info("Telegram: " + e.Data); };
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
         await Task.Delay(1800);
         if (process.HasExited)
-            throw new InvalidOperationException($"TgWsProxy.exe завершился с кодом {process.ExitCode}. Закройте другую копию прокси и проверьте proxy.log.");
-        _log.Info("Telegram-прокси запущен: 127.0.0.1:1443.");
+            throw new InvalidOperationException($"Telegram-прокси завершился с кодом {process.ExitCode}. Проверьте порт {settings.TelegramProxyPort} и журнал.");
+        _log.Info($"Telegram-прокси запущен: 127.0.0.1:{settings.TelegramProxyPort}.");
     }
 
     public async Task StopAsync()
@@ -98,7 +113,7 @@ public sealed class TelegramProxyService
         return $"tg://proxy?server={Uri.EscapeDataString(host)}&port={port}&secret=dd{secret}";
     }
 
-    public void PrepareConfiguration()
+    public void PrepareConfiguration(int port = 1443)
     {
         Directory.CreateDirectory(DataPath);
         JsonObject config;
@@ -108,10 +123,50 @@ public sealed class TelegramProxyService
                 ?? throw new InvalidDataException("Некорректный config.json Telegram-прокси.");
         }
         else config = new JsonObject();
+        config["host"] = config["host"]?.GetValue<string>() ?? "127.0.0.1";
+        config["port"] = port;
+        if (string.IsNullOrWhiteSpace(config["secret"]?.GetValue<string>()))
+            config["secret"] = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         config["check_updates"] = false;
         var temporary = ConfigPath + ".tmp";
         File.WriteAllText(temporary, config.ToJsonString(JsonOptions));
         File.Move(temporary, ConfigPath, true);
+    }
+
+    private void AddConfigurationArguments(ProcessStartInfo startInfo)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(ConfigPath));
+        var root = document.RootElement;
+        void Add(string name, string value) { startInfo.ArgumentList.Add(name); startInfo.ArgumentList.Add(value); }
+        Add("--host", root.GetProperty("host").GetString() ?? "127.0.0.1");
+        Add("--port", root.GetProperty("port").GetInt32().ToString());
+        Add("--secret", root.GetProperty("secret").GetString()!);
+        if (root.TryGetProperty("dc_ip", out var dcIp) && dcIp.ValueKind == JsonValueKind.Array)
+            foreach (var item in dcIp.EnumerateArray()) Add("--dc-ip", item.GetString() ?? "");
+        if (root.TryGetProperty("buf_kb", out var buffer)) Add("--buf-kb", buffer.GetInt32().ToString());
+        if (root.TryGetProperty("pool_size", out var pool)) Add("--pool-size", pool.GetInt32().ToString());
+        if (root.TryGetProperty("cfproxy", out var cfProxy) && !cfProxy.GetBoolean()) startInfo.ArgumentList.Add("--no-cfproxy");
+        if (root.TryGetProperty("h2", out var h2) && !h2.GetBoolean()) startInfo.ArgumentList.Add("--no-h2");
+        if (root.TryGetProperty("no_secure", out var noSecure) && noSecure.GetBoolean()) startInfo.ArgumentList.Add("--no-secure");
+        if (root.TryGetProperty("force_test_dc", out var testDc) && testDc.GetBoolean()) startInfo.ArgumentList.Add("--force-test-dc");
+        if (root.TryGetProperty("verbose", out var verbose) && verbose.GetBoolean()) startInfo.ArgumentList.Add("--verbose");
+        AddDomains(startInfo, root, "cfproxy_user_domain", "cfproxy_user_domain_enabled", "--cfproxy-domain");
+        AddDomains(startInfo, root, "cfproxy_worker_domain", "cfproxy_worker_enabled", "--cfproxy-worker-domain");
+        Add("--log-file", LogPath);
+        if (root.TryGetProperty("log_max_mb", out var logMax)) Add("--log-max-mb", logMax.GetDouble().ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private static void AddDomains(ProcessStartInfo startInfo, JsonElement root, string property, string enabledProperty, string argument)
+    {
+        if (!root.TryGetProperty(property, out var domains) || domains.ValueKind != JsonValueKind.Array) return;
+        if (root.TryGetProperty(enabledProperty, out var enabled) && !enabled.GetBoolean()) return;
+        foreach (var domain in domains.EnumerateArray())
+        {
+            var value = domain.GetString();
+            if (string.IsNullOrWhiteSpace(value)) continue;
+            startInfo.ArgumentList.Add(argument);
+            startInfo.ArgumentList.Add(value);
+        }
     }
 
     private IEnumerable<Process> FindProcesses()

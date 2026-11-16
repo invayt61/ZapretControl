@@ -292,10 +292,20 @@
                             </Border>
                             <Border Style="{StaticResource Card}" Margin="0,18,0,0">
                                 <StackPanel>
+                                    <TextBlock Text="Telegram-прокси" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" />
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <StackPanel><TextBlock Text="Локальный порт" FontWeight="SemiBold" Margin="0,0,0,7" /><TextBox Style="{StaticResource Input}" Text="{Binding Settings.TelegramProxyPort}" /></StackPanel>
+                                        <TextBlock Grid.Column="1" Text="Прокси работает внутри Zapret Control без отдельного значка в трее. Секрет создаётся один раз и сохраняется при обновлениях." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="24,0,0,0" />
+                                    </Grid>
+                                    <TextBlock Text="Если прокси запущен, после сохранения он перезапустится на новом порту. Повторно нажмите «Подключить Telegram», если порт изменился." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,12,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel>
                                     <TextBlock Text="Обновления" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" />
                                     <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.CheckForUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Проверять новые релизы zapret и TG WS Proxy каждые 6 часов" />
                                     <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Устанавливать обновления zapret и Telegram-прокси автоматически" Margin="0,18,0,0" />
-                                    <TextBlock Text="Эти два переключателя сохраняются сразу. Файлы скачиваются только из официальных репозиториев Flowseal; SHA-256 проверяется перед установкой." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,14,0,0" />
+                                    <TextBlock Text="Эти два переключателя сохраняются сразу. Используются официальные релизы Flowseal и сборка интегрированного движка Zapret Control; SHA-256 проверяется перед установкой." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,14,0,0" />
                                 </StackPanel>
                             </Border>
                             <Button Content="Сохранить и применить" Command="{Binding SaveSettingsCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,20,0,10" />

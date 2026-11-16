@@ -10,9 +10,9 @@
     <RootNamespace>ZapretControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <AssemblyTitle>Zapret Control</AssemblyTitle>
-    <Description>Графический интерфейс для zapret-discord-youtube</Description>
+    <Description>Windows-интерфейс для zapret-discord-youtube с интегрированным TG WS Proxy</Description>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="engine\**\*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />

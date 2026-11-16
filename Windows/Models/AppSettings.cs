@@ -8,6 +8,7 @@ public sealed class AppSettings
     public string GameUdpPorts { get; set; } = "1024-65535";
     public string IpSetMode { get; set; } = "loaded";
     public bool AutoStart { get; set; }
+    public int TelegramProxyPort { get; set; } = 1443;
     public bool CheckForUpdates { get; set; } = true;
     public bool AutoInstallUpdates { get; set; } = true;
     public DateTime? LastUpdateCheck { get; set; }

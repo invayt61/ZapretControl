@@ -33,7 +33,8 @@ Zapret Control является неофициальным графически�
 - Лицензия: MIT
 - Copyright (c) 2026 Flowseal
 - Полный текст лицензии: https://github.com/Flowseal/tg-ws-proxy/blob/main/LICENSE
-- Zapret Control скачивает официальный немодифицированный исполняемый файл из GitHub Releases при первом запуске прокси и при обновлениях. Исполняемый файл TG WS Proxy не включён в исходный репозиторий Zapret Control.
+- Zapret Control использует официальный CLI-движок `proxy.tg_ws_proxy` из исходного кода проекта. Отдельный entrypoint в `integration/TgWsProxyHeadless.py` удаляет только GUI/tray-оболочку и не изменяет алгоритмы прокси.
+- Двоичный файл собирается в GitHub Actions из конкретного официального релиза Flowseal. Ссылка на использованный релиз указывается в описании каждой сборки движка.
 
 ## Telegram
 

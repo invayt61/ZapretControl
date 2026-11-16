@@ -1,6 +1,5 @@
 using System.IO;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using ZapretControl.Models;
@@ -9,7 +8,8 @@ namespace ZapretControl.Services;
 
 public sealed class TelegramProxyUpdateService
 {
-    private const string ApiUrl = "https://api.github.com/repos/Flowseal/tg-ws-proxy/releases/latest";
+    private const string UpstreamApiUrl = "https://api.github.com/repos/Flowseal/tg-ws-proxy/releases/latest";
+    private const string IntegratedRepository = "invayt61/ZapretControl";
     private static readonly HttpClient Client = CreateClient();
     private readonly TelegramProxyService _proxy;
 
@@ -29,16 +29,21 @@ public sealed class TelegramProxyUpdateService
 
     public async Task<ReleaseInfo> CheckAsync(CancellationToken cancellationToken = default)
     {
-        using var response = await Client.GetAsync(ApiUrl, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-        var root = document.RootElement;
-        var version = root.GetProperty("tag_name").GetString()?.TrimStart('v') ?? throw new InvalidDataException("GitHub не вернул версию Telegram-прокси.");
-        var assetName = RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "TgWsProxy_windows_arm64.exe" : "TgWsProxy_windows.exe";
-        var asset = root.GetProperty("assets").EnumerateArray().FirstOrDefault(x =>
-            x.GetProperty("name").GetString()?.Equals(assetName, StringComparison.OrdinalIgnoreCase) == true);
-        if (asset.ValueKind == JsonValueKind.Undefined) throw new InvalidDataException($"В релизе нет {assetName}.");
+        using var upstreamResponse = await Client.GetAsync(UpstreamApiUrl, cancellationToken);
+        upstreamResponse.EnsureSuccessStatusCode();
+        await using var upstreamStream = await upstreamResponse.Content.ReadAsStreamAsync(cancellationToken);
+        using var upstream = await JsonDocument.ParseAsync(upstreamStream, cancellationToken: cancellationToken);
+        var upstreamRoot = upstream.RootElement;
+        var version = upstreamRoot.GetProperty("tag_name").GetString()?.TrimStart('v') ?? throw new InvalidDataException("GitHub не вернул версию Telegram-прокси.");
+        var releaseTag = "tg-ws-proxy-v" + version;
+        using var integratedResponse = await Client.GetAsync($"https://api.github.com/repos/{IntegratedRepository}/releases/tags/{releaseTag}", cancellationToken);
+        if (!integratedResponse.IsSuccessStatusCode)
+            throw new InvalidDataException($"Интегрированный движок {version} ещё собирается. Попробуйте позже.");
+        await using var integratedStream = await integratedResponse.Content.ReadAsStreamAsync(cancellationToken);
+        using var integrated = await JsonDocument.ParseAsync(integratedStream, cancellationToken: cancellationToken);
+        var asset = integrated.RootElement.GetProperty("assets").EnumerateArray().FirstOrDefault(x =>
+            x.GetProperty("name").GetString()?.Equals("TgWsProxy.exe", StringComparison.OrdinalIgnoreCase) == true);
+        if (asset.ValueKind == JsonValueKind.Undefined) throw new InvalidDataException("В релизе нет интегрированного движка TgWsProxy.exe.");
         var digest = asset.TryGetProperty("digest", out var digestElement) ? digestElement.GetString() : null;
         if (string.IsNullOrWhiteSpace(digest) || !digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("GitHub не предоставил SHA-256 Telegram-прокси. Установка отменена.");
@@ -46,12 +51,12 @@ public sealed class TelegramProxyUpdateService
         return new ReleaseInfo
         {
             Version = version,
-            Notes = root.TryGetProperty("body", out var body) ? body.GetString() ?? "" : "",
-            PageUrl = root.GetProperty("html_url").GetString() ?? "https://github.com/Flowseal/tg-ws-proxy/releases/latest",
+            Notes = upstreamRoot.TryGetProperty("body", out var body) ? body.GetString() ?? "" : "",
+            PageUrl = upstreamRoot.GetProperty("html_url").GetString() ?? "https://github.com/Flowseal/tg-ws-proxy/releases/latest",
             DownloadUrl = asset.GetProperty("browser_download_url").GetString() ?? throw new InvalidDataException("Не найдена ссылка на Telegram-прокси."),
             Sha256 = digest[7..],
             Size = asset.GetProperty("size").GetInt64(),
-            PublishedAt = root.GetProperty("published_at").GetDateTime()
+            PublishedAt = upstreamRoot.GetProperty("published_at").GetDateTime()
         };
     }
 
@@ -103,6 +108,7 @@ public sealed class TelegramProxyUpdateService
             var versionTemporary = _proxy.VersionPath + ".tmp";
             await File.WriteAllTextAsync(versionTemporary, release.Version + Environment.NewLine, cancellationToken);
             File.Move(versionTemporary, _proxy.VersionPath, true);
+            await File.WriteAllTextAsync(_proxy.IntegratedMarkerPath, release.Version + Environment.NewLine, cancellationToken);
             try { if (File.Exists(backupExecutable)) File.Delete(backupExecutable); } catch { }
             progress?.Report(100);
         }

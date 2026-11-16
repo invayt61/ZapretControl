@@ -153,8 +153,8 @@ public sealed class MainViewModel : ViewModelBase
     }
     public string TelegramProxyStatusText => TelegramProxyIsRunning ? "Telegram-прокси активен" : _telegramProxy.IsInstalled ? "Telegram-прокси остановлен" : "Telegram-прокси не установлен";
     public string TelegramProxyShortStatusText => TelegramProxyIsRunning ? "Прокси активен" : _telegramProxy.IsInstalled ? "Прокси остановлен" : "Прокси не установлен";
-    public string TelegramProxyStatusDescription => TelegramProxyIsRunning ? "MTProto · 127.0.0.1:1443" : "Работает отдельно или вместе с основным обходом";
-    public string TelegramProxyStartButtonText => TelegramProxyIsRunning ? "Остановить прокси" : _telegramProxy.IsInstalled ? "Запустить прокси" : "Установить и запустить";
+    public string TelegramProxyStatusDescription => TelegramProxyIsRunning ? $"MTProto · 127.0.0.1:{Settings.TelegramProxyPort} · внутри Zapret Control" : "Без отдельного окна и второго значка в трее";
+    public string TelegramProxyStartButtonText => TelegramProxyIsRunning ? "Остановить прокси" : !_telegramProxy.IsInstalled ? "Установить и запустить" : !_telegramProxy.IsIntegrated ? "Интегрировать и запустить" : "Запустить прокси";
     public string CurrentVersion { get => _currentVersion; private set => SetProperty(ref _currentVersion, value); }
     public string LatestVersion { get => _latestVersion; private set => SetProperty(ref _latestVersion, value); }
     public string ReleaseNotes { get => _releaseNotes; private set => SetProperty(ref _releaseNotes, value); }
@@ -284,7 +284,7 @@ public sealed class MainViewModel : ViewModelBase
         ValidateAndSaveSettings();
         if (!IsRunning) await _zapret.StartAsync(SelectedStrategy, Settings);
         await EnsureTelegramProxyInstalledAsync();
-        if (!TelegramProxyIsRunning) await _telegramProxy.StartAsync();
+        if (!TelegramProxyIsRunning) await _telegramProxy.StartAsync(Settings);
         RefreshRunningStatus();
     });
 
@@ -298,15 +298,17 @@ public sealed class MainViewModel : ViewModelBase
         await RunBusy("Запускаем Telegram-прокси…", async () =>
         {
             await EnsureTelegramProxyInstalledAsync();
-            await _telegramProxy.StartAsync();
+            await _telegramProxy.StartAsync(Settings);
             RefreshRunningStatus();
         });
     }
 
     private async Task EnsureTelegramProxyInstalledAsync()
     {
-        if (_telegramProxy.IsInstalled) return;
-        TelegramProxyUpdateStatus = "Скачиваем официальный релиз Flowseal…";
+        if (_telegramProxy.IsInstalled && _telegramProxy.IsIntegrated) return;
+        var wasRunning = _telegramProxy.IsRunning;
+        if (wasRunning) await _telegramProxy.StopAsync();
+        TelegramProxyUpdateStatus = "Скачиваем интегрированный движок на основе релиза Flowseal…";
         TelegramProxyUpdateProgress = 0;
         var release = await _telegramProxyUpdates.CheckAsync();
         SetTelegramProxyRelease(release);
@@ -317,8 +319,9 @@ public sealed class MainViewModel : ViewModelBase
         Settings.LastTelegramProxyUpdateCheck = DateTime.UtcNow;
         Settings.LatestTelegramProxyVersion = release.Version;
         _settingsService.Save(Settings);
-        TelegramProxyUpdateStatus = $"Telegram-прокси {TelegramProxyCurrentVersion} установлен.";
+        TelegramProxyUpdateStatus = $"Интегрированный Telegram-прокси {TelegramProxyCurrentVersion} установлен.";
         _log.Info(TelegramProxyUpdateStatus);
+        if (wasRunning) await _telegramProxy.StartAsync(Settings);
     }
 
     private void OpenInTelegram()
@@ -346,12 +349,16 @@ public sealed class MainViewModel : ViewModelBase
     private async Task SaveSettingsAsync() => await RunBusy("Применяем настройки…", async () =>
     {
         var shouldRun = IsRunning || Settings.AutoStart;
+        var restartProxy = TelegramProxyIsRunning;
         ValidateAndSaveSettings();
         if (IsRunning) await _zapret.StopAsync();
+        if (restartProxy) await _telegramProxy.StopAsync();
         if (!Settings.AutoStart) await _zapret.DeleteServiceAsync();
         _strategies.ApplySettings(Settings);
         if (shouldRun && SelectedStrategy != null) await _zapret.StartAsync(SelectedStrategy, Settings);
+        if (restartProxy) await _telegramProxy.StartAsync(Settings);
         RefreshRunningStatus();
+        OnPropertyChanged(nameof(TelegramProxyStatusDescription));
         _log.Info("Настройки сохранены.");
     });
 
@@ -360,6 +367,7 @@ public sealed class MainViewModel : ViewModelBase
         if (SelectedStrategy == null) throw new InvalidOperationException("Выберите стратегию.");
         StrategyService.ValidatePortRange(Settings.GameTcpPorts);
         StrategyService.ValidatePortRange(Settings.GameUdpPorts);
+        if (Settings.TelegramProxyPort is < 1 or > 65535) throw new ArgumentException("Порт Telegram-прокси должен быть от 1 до 65535.");
         Settings.SelectedStrategy = SelectedStrategy.FileName;
         _settingsService.Save(Settings);
     }
@@ -418,7 +426,7 @@ public sealed class MainViewModel : ViewModelBase
             TelegramProxyUpdateProgress = 0;
             var release = await _telegramProxyUpdates.CheckAsync();
             SetTelegramProxyRelease(release);
-            HasTelegramProxyUpdate = !_telegramProxy.IsInstalled || UpdateService.IsNewer(release.Version, TelegramProxyCurrentVersion);
+            HasTelegramProxyUpdate = !_telegramProxy.IsInstalled || !_telegramProxy.IsIntegrated || UpdateService.IsNewer(release.Version, TelegramProxyCurrentVersion);
             Settings.LastTelegramProxyUpdateCheck = DateTime.UtcNow;
             Settings.LatestTelegramProxyVersion = release.Version;
             _settingsService.Save(Settings);
@@ -440,7 +448,7 @@ public sealed class MainViewModel : ViewModelBase
         await RunBusy("Обновляем Telegram-прокси…", async () =>
         {
             var wasRunning = TelegramProxyIsRunning;
-            TelegramProxyUpdateStatus = "Скачиваем и проверяем официальный EXE-файл…";
+            TelegramProxyUpdateStatus = "Скачиваем и проверяем интегрированный EXE-движок…";
             TelegramProxyUpdateProgress = 0;
             if (wasRunning) await _telegramProxy.StopAsync();
             var progress = new Progress<double>(value => TelegramProxyUpdateProgress = value);
@@ -451,7 +459,7 @@ public sealed class MainViewModel : ViewModelBase
             _log.Info(TelegramProxyUpdateStatus);
             if (wasRunning)
             {
-                await _telegramProxy.StartAsync();
+                await _telegramProxy.StartAsync(Settings);
                 TelegramProxyUpdateStatus += " Прокси перезапущен.";
             }
             RefreshRunningStatus();
