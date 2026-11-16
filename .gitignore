@@ -1,0 +1,12 @@
+.vs/
+.vscode/
+**/.vs/
+**/*.user
+**/*.suo
+Windows/bin/
+Windows/obj/
+Windows/ZapretControl/
+Windows/ZapretControl-win-x64.zip
+Windows/telegram-proxy/
+Windows/.updates/
+**/*.tmp

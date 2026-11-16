@@ -1,0 +1,311 @@
+<Window x:Class="ZapretControl.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ZapretControl"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Zapret Control" Width="1180" Height="780" MinWidth="1040" MinHeight="680"
+        Background="{StaticResource WindowBrush}" WindowStyle="None" ResizeMode="CanResize" WindowStartupLocation="CenterScreen">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" GlassFrameThickness="0" ResizeBorderThickness="6" NonClientFrameEdges="None" UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+    <Window.Resources>
+        <local:PageVisibilityConverter x:Key="PageVisibility" />
+        <Style x:Key="Page" TargetType="Grid">
+            <Setter Property="Visibility" Value="Collapsed" />
+        </Style>
+        <Style x:Key="WindowButton" TargetType="Button">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="B" Background="{TemplateBinding Background}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="B" Property="Background" Value="#242C3D" /><Setter Property="Foreground" Value="White" /></Trigger></ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="StatusDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="10" /><Setter Property="Height" Value="10" /><Setter Property="Fill" Value="{StaticResource DangerBrush}" />
+            <Style.Triggers><DataTrigger Binding="{Binding IsRunning}" Value="True"><Setter Property="Fill" Value="{StaticResource SuccessBrush}" /></DataTrigger></Style.Triggers>
+        </Style>
+        <Style x:Key="DiagnosticDot" TargetType="Ellipse">
+            <Setter Property="Width" Value="10" /><Setter Property="Height" Value="10" /><Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="warning"><Setter Property="Fill" Value="{StaticResource WarningBrush}" /></DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="error"><Setter Property="Fill" Value="{StaticResource DangerBrush}" /></DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="42" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Border Grid.Row="0" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="16,0" VerticalAlignment="Center">
+                    <Border Width="22" Height="22" CornerRadius="6" Background="{StaticResource AccentBrush}" Margin="0,0,9,0"><TextBlock Text="Z" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                    <TextBlock Text="Zapret Control" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Text="  ·  неофициальный интерфейс" Foreground="{StaticResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource WindowButton}" Content="–" Click="Minimize_Click" ToolTip="Свернуть" AutomationProperties.Name="Свернуть" />
+                    <Button Style="{StaticResource WindowButton}" Content="□" Click="Maximize_Click" ToolTip="Развернуть или восстановить" AutomationProperties.Name="Развернуть или восстановить" />
+                    <Button Style="{StaticResource WindowButton}" Content="×" Click="Close_Click" ToolTip="Закрыть" AutomationProperties.Name="Закрыть" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="218" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <StackPanel Margin="22,26,22,22">
+                        <TextBlock Text="ZAPRET" FontSize="25" FontWeight="Bold" />
+                        <TextBlock Text="CONTROL CENTER" FontSize="10" FontWeight="SemiBold" Foreground="#9D89FF" Margin="1,2,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="1">
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav" IsChecked="True" Tag="0" Checked="Nav_Checked" Content="Главная" />
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav" Tag="1" Checked="Nav_Checked" Content="Стратегии" />
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav" Tag="2" Checked="Nav_Checked" Content="Мои списки" />
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav" Tag="3" Checked="Nav_Checked" Content="Обновления" />
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav" Tag="4" Checked="Nav_Checked" Content="Диагностика" />
+                        <RadioButton Style="{StaticResource NavButton}" GroupName="Nav" Tag="5" Checked="Nav_Checked" Content="Настройки" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Margin="22,0,22,20">
+                        <Border Background="#111924" CornerRadius="10" Padding="13">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal"><Ellipse Style="{StaticResource StatusDot}" /><TextBlock Text="{Binding StatusText}" FontSize="12" Margin="8,0,0,0" /></StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Ellipse Style="{StaticResource TelegramStatusDot}" /><TextBlock Text="{Binding TelegramProxyShortStatusText}" FontSize="12" Margin="8,0,0,0" /></StackPanel>
+                                <TextBlock Text="Версия ядра" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,12,0,0" />
+                                <TextBlock Text="{Binding CurrentVersion, StringFormat='v{0}'}" FontSize="13" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Border>
+                        <Button Style="{StaticResource SecondaryButton}" Content="GitHub проекта" Command="{Binding OpenGitHubCommand}" Margin="0,12,0,0" Padding="10,8" FontSize="12" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <Grid Grid.Row="0" Margin="30,24,30,20">
+                    <!-- Главная -->
+                    <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=0}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Обход блокировок" FontSize="28" FontWeight="SemiBold" />
+                                <TextBlock Text="YouTube, Discord и Telegram — запуск по одной кнопке или по отдельности" Foreground="{StaticResource MutedBrush}" FontSize="14" Margin="0,6,0,24" TextWrapping="Wrap" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="1.5*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource Card}" Margin="0,0,10,0" Padding="26">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal"><Ellipse Style="{StaticResource StatusDot}" Width="12" Height="12" /><TextBlock Text="{Binding StatusText}" FontSize="21" FontWeight="SemiBold" Margin="10,0,0,0" TextWrapping="Wrap" /></StackPanel>
+                                            <TextBlock Text="{Binding StatusDescription}" Foreground="{StaticResource MutedBrush}" Margin="0,9,0,22" TextWrapping="Wrap" />
+                                            <Border Background="#0D121C" CornerRadius="9" Padding="13" Margin="0,0,0,20">
+                                                <StackPanel Orientation="Horizontal"><TextBlock Text="Стратегия" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding SelectedStrategy.Name}" FontWeight="SemiBold" Margin="10,0,0,0" TextWrapping="Wrap" /></StackPanel>
+                                            </Border>
+                                            <WrapPanel>
+                                                <Button Content="{Binding StartButtonText}" Command="{Binding StartStopCommand}" Style="{StaticResource SecondaryButton}" MinWidth="150" Margin="0,0,10,10" />
+                                                <Button Content="Перезапустить" Command="{Binding RestartCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,10,10" />
+                                                <Button Content="Запустить всё" Command="{Binding StartAllCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,10" ToolTip="Запустить выбранную стратегию и Telegram-прокси" />
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Style="{StaticResource Card}" Margin="10,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Доступность сервисов" FontSize="17" FontWeight="SemiBold" />
+                                            <TextBlock Text="Проверка по HTTPS" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,16" />
+                                            <Grid Margin="0,4"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="YouTube" /><TextBlock Grid.Column="1" Text="{Binding YouTubeStatus}" HorizontalAlignment="Right" Foreground="{StaticResource MutedBrush}" /></Grid>
+                                            <Grid Margin="0,15"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions><TextBlock Text="Discord" /><TextBlock Grid.Column="1" Text="{Binding DiscordStatus}" HorizontalAlignment="Right" Foreground="{StaticResource MutedBrush}" /></Grid>
+                                            <Button Content="Проверить сейчас" Command="{Binding CheckConnectionsCommand}" Style="{StaticResource SecondaryButton}" Margin="0,22,0,0" Padding="10,8" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal"><Ellipse Style="{StaticResource TelegramStatusDot}" Width="12" Height="12" /><TextBlock Text="{Binding TelegramProxyStatusText}" FontSize="19" FontWeight="SemiBold" Margin="10,0,0,0" TextWrapping="Wrap" /></StackPanel>
+                                        <TextBlock Text="{Binding TelegramProxyStatusDescription}" Foreground="{StaticResource MutedBrush}" Margin="0,9,0,0" TextWrapping="Wrap" />
+                                        <TextBlock Text="После запуска нажмите «Подключить Telegram» и подтвердите прокси в Telegram Desktop." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,7,0,0" TextWrapping="Wrap" />
+                                        <WrapPanel Margin="0,16,0,0">
+                                            <Button Content="{Binding TelegramProxyStartButtonText}" Command="{Binding TelegramProxyStartStopCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" />
+                                            <Button Content="Подключить Telegram" Command="{Binding OpenInTelegramCommand}" Style="{StaticResource SecondaryButton}" />
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding TelegramProxyCurrentVersion, StringFormat='TG WS Proxy · версия {0} · официальный релиз Flowseal'}" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,14,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0"><TextBlock Text="Игровой фильтр" FontWeight="SemiBold" /><TextBlock Text="TCP/UDP для игр и приложений" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,9" /><ComboBox SelectedValue="{Binding Settings.GameFilter}" SelectedValuePath="Tag"><ComboBoxItem Tag="disabled" Content="Выключен" /><ComboBoxItem Tag="all" Content="TCP и UDP" /><ComboBoxItem Tag="tcp" Content="Только TCP" /><ComboBoxItem Tag="udp" Content="Только UDP" /></ComboBox></StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="0,0,20,0"><TextBlock Text="IPSet" FontWeight="SemiBold" /><TextBlock Text="Какие IP попадают под фильтр" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,4,0,9" /><ComboBox SelectedValue="{Binding Settings.IpSetMode}" SelectedValuePath="Tag"><ComboBoxItem Tag="loaded" Content="Из списка" /><ComboBoxItem Tag="none" Content="Никакие" /><ComboBoxItem Tag="any" Content="Любые IP" /></ComboBox></StackPanel>
+                                        <Button Grid.Column="2" Content="Применить" Command="{Binding SaveSettingsCommand}" Style="{StaticResource SecondaryButton}" VerticalAlignment="Bottom" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Margin="0,18,0,0" Padding="18">
+                                    <StackPanel>
+                                        <Grid><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><TextBlock Text="Журнал" FontWeight="SemiBold" /><Button Grid.Column="1" Content="Очистить" Command="{Binding ClearLogCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4" FontSize="11" /></Grid>
+                                        <ListBox ItemsSource="{Binding Log.Entries}" Height="118" Margin="0,12,0,0" Background="#0D121C" BorderBrush="{StaticResource BorderBrush}" Foreground="{StaticResource MutedBrush}" FontFamily="Consolas" FontSize="11" ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- Стратегии -->
+                    <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=1}">
+                        <StackPanel>
+                            <TextBlock Text="Стратегии обхода" FontSize="28" FontWeight="SemiBold" />
+                            <TextBlock Text="Если одна не работает, попробуйте ALT, FAKE TLS или SIMPLE FAKE" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,20" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="340" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,18,0">
+                                    <TextBox Style="{StaticResource Input}" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12"><TextBox.ToolTip>Поиск стратегии</TextBox.ToolTip></TextBox>
+                                    <Border Style="{StaticResource Card}" Padding="8">
+                                        <ListBox ItemsSource="{Binding FilteredStrategies}" SelectedItem="{Binding SelectedStrategy}" Background="Transparent" BorderThickness="0" MaxHeight="500" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="Padding" Value="0" /><Setter Property="Margin" Value="0,2" /></Style></ListBox.ItemContainerStyle>
+                                            <ListBox.ItemTemplate><DataTemplate><Border CornerRadius="8" Padding="12" Background="Transparent"><StackPanel><TextBlock Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Text="Рекомендуется" Foreground="#A994FF" FontSize="11" Visibility="{Binding IsRecommended, Converter={StaticResource PageVisibility}, ConverterParameter=True}" /></StackPanel></Border></DataTemplate></ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Border>
+                                </StackPanel>
+                                <Border Grid.Column="1" Style="{StaticResource Card}" VerticalAlignment="Top" Padding="28">
+                                    <StackPanel>
+                                        <StackPanel DataContext="{Binding SelectedStrategy}">
+                                            <TextBlock Text="Выбранная стратегия" Foreground="{StaticResource MutedBrush}" />
+                                            <TextBlock Text="{Binding Name}" FontSize="25" FontWeight="SemiBold" Margin="0,8,0,14" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource MutedBrush}" FontSize="14" TextWrapping="Wrap" LineHeight="23" />
+                                            <Border Background="#19182B" CornerRadius="9" Padding="14" Margin="0,24,0,0"><TextBlock Text="Выбор стратегии зависит от провайдера. Оценивайте работу YouTube и Discord после каждого запуска." Foreground="#BDB3E8" TextWrapping="Wrap" LineHeight="21" /></Border>
+                                        </StackPanel>
+                                        <StackPanel Margin="0,28,0,0"><Button Content="Применить и запустить" Command="{Binding ApplyStrategyCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" /><TextBlock Text="Текущий обход будет остановлен перед запуском новой стратегии." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,12,0,0" /></StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Списки -->
+                    <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=2}">
+                        <StackPanel>
+                            <TextBlock Text="Мои списки" FontSize="28" FontWeight="SemiBold" />
+                            <TextBlock Text="Эти файлы сохраняются при каждом обновлении ядра" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,20" />
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions><ComboBox ItemsSource="{Binding UserLists}" SelectedItem="{Binding SelectedList}" MinWidth="320" HorizontalAlignment="Left"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate></ComboBox><Button Grid.Column="1" Content="Открыть папку" Command="{Binding OpenListsFolderCommand}" Style="{StaticResource SecondaryButton}" Padding="14,7" /></Grid>
+                            <TextBlock Text="{Binding SelectedList.Description}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,14,0,12" />
+                            <Border Style="{StaticResource Card}" Padding="0">
+                                <TextBox Text="{Binding ListContent, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" AcceptsTab="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Background="#0D121C" Foreground="#DCE3EF" BorderThickness="0" Padding="18" FontFamily="Cascadia Mono, Consolas" FontSize="13" Height="365" VerticalContentAlignment="Top" />
+                            </Border>
+                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0"><Button Content="Сохранить список" Command="{Binding SaveListCommand}" Style="{StaticResource PrimaryButton}" /><TextBlock Text="После сохранения перезапустите обход" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="14,0,0,0" /></StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Обновления -->
+                    <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=3}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                            <TextBlock Text="Обновления" FontSize="28" FontWeight="SemiBold" />
+                            <TextBlock Text="Официальные релизы Flowseal · проверка SHA-256 · сохранение настроек" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,22" />
+                            <Border Style="{StaticResource Card}" Margin="0,0,0,22" Padding="18">
+                                <StackPanel>
+                                    <TextBlock Text="Автоматические обновления" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,13" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.CheckForUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Проверять новые версии на GitHub каждые 6 часов" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Автоматически устанавливать обновления ядра и Telegram-прокси" Margin="0,16,0,0" />
+                                    <TextBlock Text="Переключатели сохраняются сразу. Если автоустановка выключена, доступные обновления только показываются здесь." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="52,12,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="Ядро zapret" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource Card}" Margin="0,0,9,0"><StackPanel><TextBlock Text="Установлено" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding CurrentVersion, StringFormat='v{0}'}" FontSize="30" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel></Border>
+                                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="9,0,0,0"><StackPanel><TextBlock Text="Последний релиз" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding LatestVersion, StringFormat='v{0}'}" FontSize="30" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel></Border>
+                            </Grid>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal"><Button Content="Проверить обновления" Command="{Binding CheckUpdatesCommand}" Style="{StaticResource PrimaryButton}" /><Button Content="{Binding UpdateButtonText}" Command="{Binding InstallUpdateCommand}" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" /><Button Content="Страница релиза" Command="{Binding OpenReleaseCommand}" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" /></StackPanel>
+                                    <TextBlock Text="{Binding UpdateStatus}" Margin="0,18,0,9" TextWrapping="Wrap" />
+                                    <ProgressBar Value="{Binding UpdateProgress, Mode=OneWay}" Minimum="0" Maximum="100" Height="7" Foreground="{StaticResource AccentBrush}" Background="#252D3D" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel><TextBlock Text="Что нового в zapret" FontSize="18" FontWeight="SemiBold" /><TextBox Text="{Binding ReleaseNotes, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Background="Transparent" Foreground="{StaticResource MutedBrush}" BorderThickness="0" Padding="0" Margin="0,12,0,0" MinHeight="100" VerticalScrollBarVisibility="Auto" /></StackPanel>
+                            </Border>
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,26" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12"><TextBlock Text="Telegram-прокси" FontSize="18" FontWeight="SemiBold" /><Button Content="GitHub" Command="{Binding OpenTelegramProxyGitHubCommand}" Style="{StaticResource SecondaryButton}" Padding="10,4" FontSize="11" Margin="12,0,0,0" /></StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource Card}" Margin="0,0,9,0"><StackPanel><TextBlock Text="Установлено" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding TelegramProxyCurrentVersion}" FontSize="30" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel></Border>
+                                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="9,0,0,0"><StackPanel><TextBlock Text="Последний релиз" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding TelegramProxyLatestVersion, StringFormat='v{0}'}" FontSize="30" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel></Border>
+                            </Grid>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal"><Button Content="Проверить обновления" Command="{Binding CheckTelegramProxyUpdatesCommand}" Style="{StaticResource PrimaryButton}" /><Button Content="{Binding TelegramProxyUpdateButtonText}" Command="{Binding InstallTelegramProxyUpdateCommand}" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" /><Button Content="Страница релиза" Command="{Binding OpenTelegramProxyReleaseCommand}" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" /></StackPanel>
+                                    <TextBlock Text="{Binding TelegramProxyUpdateStatus}" Margin="0,18,0,9" TextWrapping="Wrap" />
+                                    <ProgressBar Value="{Binding TelegramProxyUpdateProgress, Mode=OneWay}" Minimum="0" Maximum="100" Height="7" Foreground="{StaticResource AccentBrush}" Background="#252D3D" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,10">
+                                <StackPanel><TextBlock Text="Что нового в TG WS Proxy" FontSize="18" FontWeight="SemiBold" /><TextBox Text="{Binding TelegramProxyReleaseNotes, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Background="Transparent" Foreground="{StaticResource MutedBrush}" BorderThickness="0" Padding="0" Margin="0,12,0,0" MinHeight="100" VerticalScrollBarVisibility="Auto" /></StackPanel>
+                            </Border>
+                        </StackPanel></ScrollViewer>
+                    </Grid>
+
+                    <!-- Диагностика -->
+                    <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=4}">
+                        <StackPanel>
+                            <TextBlock Text="Диагностика" FontSize="28" FontWeight="SemiBold" />
+                            <TextBlock Text="Проверка типичных причин, из-за которых обход может не работать" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,18" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,18"><Button Content="Запустить диагностику" Command="{Binding RunDiagnosticsCommand}" Style="{StaticResource PrimaryButton}" /><TextBlock Text="Займёт несколько секунд" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="14,0,0,0" /></StackPanel>
+                            <Border Padding="10">
+                                <Border.Style><Style TargetType="Border" BasedOn="{StaticResource Card}"><Style.Triggers><DataTrigger Binding="{Binding Diagnostics.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></Border.Style>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500"><ItemsControl ItemsSource="{Binding Diagnostics}">
+                                    <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><Ellipse Style="{StaticResource DiagnosticDot}" VerticalAlignment="Top" Margin="0,5,0,0" /><TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold" /><TextBlock Grid.Column="2" Text="{Binding Details}" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" /></Grid></Border></DataTemplate></ItemsControl.ItemTemplate>
+                                    <ItemsControl.Style><Style TargetType="ItemsControl"><Style.Triggers><DataTrigger Binding="{Binding Diagnostics.Count}" Value="0"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers></Style></ItemsControl.Style>
+                                </ItemsControl></ScrollViewer>
+                            </Border>
+                            <TextBlock Text="Для стабильной работы также включите Secure DNS в браузере и выберите провайдера не по умолчанию." Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="4,16,4,0" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Настройки -->
+                    <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=5}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                            <TextBlock Text="Настройки" FontSize="28" FontWeight="SemiBold" />
+                            <TextBlock Text="Фильтры применяются кнопкой «Сохранить и применить». Переключатели обновлений сохраняются сразу." Foreground="{StaticResource MutedBrush}" Margin="0,6,0,20" TextWrapping="Wrap" />
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="Запуск и фильтрация" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoStart}" Content="Запускать обход автоматически при старте Windows" />
+                                    <TextBlock Text="Используется системная служба zapret. Обход продолжит работать после закрытия интерфейса." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="52,8,0,20" TextWrapping="Wrap" />
+                                    <Grid><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,12,0"><TextBlock Text="Игровой фильтр" FontWeight="SemiBold" Margin="0,0,0,7" /><ComboBox SelectedValue="{Binding Settings.GameFilter}" SelectedValuePath="Tag"><ComboBoxItem Tag="disabled" Content="Выключен" /><ComboBoxItem Tag="all" Content="TCP и UDP" /><ComboBoxItem Tag="tcp" Content="Только TCP" /><ComboBoxItem Tag="udp" Content="Только UDP" /></ComboBox></StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0"><TextBlock Text="IPSet" FontWeight="SemiBold" Margin="0,0,0,7" /><ComboBox SelectedValue="{Binding Settings.IpSetMode}" SelectedValuePath="Tag"><ComboBoxItem Tag="loaded" Content="Из списка (рекомендуется)" /><ComboBoxItem Tag="none" Content="Никакие IP" /><ComboBoxItem Tag="any" Content="Любые IP (осторожно)" /></ComboBox></StackPanel>
+                                    </Grid>
+                                    <Grid Margin="0,18,0,0"><Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,12,0"><TextBlock Text="TCP-порты" FontWeight="SemiBold" Margin="0,0,0,7" /><TextBox Style="{StaticResource Input}" Text="{Binding Settings.GameTcpPorts}" /></StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="12,0,0,0"><TextBlock Text="UDP-порты" FontWeight="SemiBold" Margin="0,0,0,7" /><TextBox Style="{StaticResource Input}" Text="{Binding Settings.GameUdpPorts}" /></StackPanel>
+                                    </Grid>
+                                    <TextBlock Text="Допустимы порты и диапазоны через запятую: 1024-65535,80,443" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,8,0,0" />
+                                    <Button Content="Обновить список IPSet из GitHub" Command="{Binding UpdateIpSetCommand}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,18,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Обновления" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.CheckForUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Проверять новые релизы zapret и TG WS Proxy каждые 6 часов" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Устанавливать обновления zapret и Telegram-прокси автоматически" Margin="0,18,0,0" />
+                                    <TextBlock Text="Эти два переключателя сохраняются сразу. Файлы скачиваются только из официальных репозиториев Flowseal; SHA-256 проверяется перед установкой." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,14,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Button Content="Сохранить и применить" Command="{Binding SaveSettingsCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,20,0,10" />
+                        </StackPanel></ScrollViewer>
+                    </Grid>
+                </Grid>
+                <Border Grid.Row="1" Background="#111722" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="30,9" Visibility="{Binding IsBusy, Converter={StaticResource PageVisibility}, ConverterParameter=True}">
+                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><ProgressBar IsIndeterminate="True" Width="90" Height="4" Foreground="{StaticResource AccentBrush}" Background="#30394A" Margin="0,0,14,0" /><TextBlock Grid.Column="1" Text="{Binding BusyText}" Foreground="{StaticResource MutedBrush}" FontSize="12" /></Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
