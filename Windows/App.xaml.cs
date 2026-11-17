@@ -43,8 +43,10 @@ public partial class App : System.Windows.Application
             return;
         }
         ShutdownMode = ShutdownMode.OnMainWindowClose;
-        MainWindow = new MainWindow();
-        MainWindow.Show();
+        var window = new MainWindow();
+        MainWindow = window;
+        if (e.Args.Contains("--hidden")) await window.InitializeAsync();
+        else window.Show();
     }
 
     private static async Task<int> RunSelfTestAsync(bool verifyUpdate)
@@ -79,6 +81,20 @@ public partial class App : System.Windows.Application
                 foreach (var strategy in installed.LoadStrategies()) _ = installed.BuildArguments(strategy, settings);
                 if (installed.GetCoreVersion() != release.Version) throw new InvalidDataException("Версия установленного ядра не совпадает с релизом.");
                 Console.WriteLine("Обновление zapret проверено: скачивание, хэш, безопасная распаковка и все стратегии — успешно.");
+            }
+
+            var appUpdates = new AppUpdateService();
+            var appRelease = await appUpdates.CheckAsync();
+            Console.WriteLine($"Zapret Control GitHub: {appRelease.Version}; SHA-256: {appRelease.Sha256}; ZIP: {appRelease.Size} байт");
+            if (verifyUpdate)
+            {
+                var prepared = await appUpdates.PrepareAsync(appRelease);
+                try
+                {
+                    if (!File.Exists(prepared.ExecutablePath)) throw new InvalidDataException("EXE обновления приложения не подготовлен.");
+                    Console.WriteLine("Обновление приложения проверено: скачивание, SHA-256 и извлечение EXE — успешно.");
+                }
+                finally { try { Directory.Delete(prepared.WorkDirectory, true); } catch { } }
             }
 
             var proxyRoot = Path.Combine(string.IsNullOrEmpty(temporary) ? Path.GetTempPath() : temporary, "telegram-proxy");

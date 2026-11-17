@@ -99,6 +99,19 @@ public sealed class TelegramProxyService
         if (stopped) _log.Info("Telegram-прокси остановлен.");
     }
 
+    public async Task ApplyAutoStartAsync(bool enabled)
+    {
+        const string taskName = "ZapretControl";
+        if (!enabled)
+        {
+            await ProcessRunner.RunAsync("schtasks.exe", "/delete", "/tn", taskName, "/f");
+            return;
+        }
+        var executable = Environment.ProcessPath ?? throw new InvalidOperationException("Не удалось определить путь ZapretControl.exe.");
+        var result = await ProcessRunner.RunAsync("schtasks.exe", "/create", "/tn", taskName, "/sc", "onlogon", "/rl", "highest", "/tr", $"\"{executable}\" --hidden", "/f");
+        if (!result.Success) throw new InvalidOperationException("Не удалось настроить автозапуск Telegram-прокси: " + result.Output);
+    }
+
     public string GetTelegramUrl()
     {
         if (!File.Exists(ConfigPath)) throw new InvalidOperationException("Настройки прокси ещё не созданы. Подождите несколько секунд после запуска.");

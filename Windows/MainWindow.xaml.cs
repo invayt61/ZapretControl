@@ -13,6 +13,10 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private Forms.NotifyIcon? _trayIcon;
     private Forms.ContextMenuStrip? _trayMenu;
+    private Forms.ToolStripMenuItem? _trayToggleAll;
+    private Forms.ToolStripMenuItem? _trayToggleZapret;
+    private Forms.ToolStripMenuItem? _trayToggleProxy;
+    private Forms.ToolStripMenuItem? _trayConnect;
     private bool _allowClose;
     private bool _trayHintShown;
 
@@ -21,16 +25,39 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = new MainViewModel();
         DataContext = _viewModel;
+        _viewModel.RestartRequested += () =>
+        {
+            _allowClose = true;
+            System.Windows.Application.Current.Shutdown();
+        };
         if (enableTray) InitializeTray();
         if (initialize) Loaded += async (_, _) => await _viewModel.InitializeAsync();
     }
+
+    internal async Task InitializeAsync() => await _viewModel.InitializeAsync();
 
     private void InitializeTray()
     {
         _trayMenu = new Forms.ContextMenuStrip();
         _trayMenu.Items.Add("Открыть Zapret Control", null, (_, _) => RestoreFromTray());
         _trayMenu.Items.Add(new Forms.ToolStripSeparator());
+
+        _trayToggleAll = new Forms.ToolStripMenuItem();
+        _trayToggleAll.Click += async (_, _) => await _viewModel.ToggleAllAsync();
+        _trayMenu.Items.Add(_trayToggleAll);
+        _trayToggleZapret = new Forms.ToolStripMenuItem();
+        _trayToggleZapret.Click += (_, _) => _viewModel.StartStopCommand.Execute(null);
+        _trayMenu.Items.Add(_trayToggleZapret);
+        _trayToggleProxy = new Forms.ToolStripMenuItem();
+        _trayToggleProxy.Click += (_, _) => _viewModel.TelegramProxyStartStopCommand.Execute(null);
+        _trayMenu.Items.Add(_trayToggleProxy);
+        _trayConnect = new Forms.ToolStripMenuItem("Подключить Telegram");
+        _trayConnect.Click += (_, _) => _viewModel.OpenInTelegramCommand.Execute(null);
+        _trayMenu.Items.Add(_trayConnect);
+
+        _trayMenu.Items.Add(new Forms.ToolStripSeparator());
         _trayMenu.Items.Add("Закрыть полностью", null, (_, _) => ExitFromTray());
+        _trayMenu.Opening += (_, _) => UpdateTrayMenu();
         var processPath = Environment.ProcessPath;
         var icon = processPath == null ? Drawing.SystemIcons.Application : Drawing.Icon.ExtractAssociatedIcon(processPath) ?? Drawing.SystemIcons.Application;
         _trayIcon = new Forms.NotifyIcon
@@ -41,6 +68,17 @@ public partial class MainWindow : Window
             Visible = true
         };
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+        UpdateTrayMenu();
+    }
+
+    private void UpdateTrayMenu()
+    {
+        if (_trayToggleAll == null || _trayToggleZapret == null || _trayToggleProxy == null || _trayConnect == null) return;
+        _trayToggleAll.Text = _viewModel.IsRunning || _viewModel.TelegramProxyIsRunning ? "Остановить всё" : "Запустить всё";
+        _trayToggleZapret.Text = _viewModel.IsRunning ? "Остановить обход" : "Запустить обход";
+        _trayToggleProxy.Text = _viewModel.TelegramProxyIsRunning ? "Остановить Telegram-прокси" : "Запустить Telegram-прокси";
+        _trayToggleAll.Enabled = _trayToggleZapret.Enabled = _trayToggleProxy.Enabled = !_viewModel.IsBusy;
+        _trayConnect.Enabled = !_viewModel.IsBusy && _viewModel.TelegramProxyIsRunning;
     }
 
     internal void RestoreFromTray()

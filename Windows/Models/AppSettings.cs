@@ -9,10 +9,13 @@ public sealed class AppSettings
     public string IpSetMode { get; set; } = "loaded";
     public bool AutoStart { get; set; }
     public int TelegramProxyPort { get; set; } = 1443;
+    public bool TelegramProxyAutoStart { get; set; }
     public bool CheckForUpdates { get; set; } = true;
     public bool AutoInstallUpdates { get; set; } = true;
     public DateTime? LastUpdateCheck { get; set; }
     public string? LatestVersion { get; set; }
     public DateTime? LastTelegramProxyUpdateCheck { get; set; }
     public string? LatestTelegramProxyVersion { get; set; }
+    public DateTime? LastAppUpdateCheck { get; set; }
+    public string? LatestAppVersion { get; set; }
 }

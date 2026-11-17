@@ -15,6 +15,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly LogService _log = new();
     private readonly ZapretService _zapret;
     private readonly UpdateService _updates = new();
+    private readonly AppUpdateService _appUpdates = new();
     private readonly TelegramProxyService _telegramProxy;
     private readonly TelegramProxyUpdateService _telegramProxyUpdates;
     private readonly DiagnosticsService _diagnostics;
@@ -22,6 +23,7 @@ public sealed class MainViewModel : ViewModelBase
     private readonly DispatcherTimer _updateTimer;
     private ReleaseInfo? _latestRelease;
     private ReleaseInfo? _latestTelegramProxyRelease;
+    private ReleaseInfo? _latestAppRelease;
     private StrategyInfo? _selectedStrategy;
     private UserListDefinition? _selectedList;
     private string _searchText = "";
@@ -43,6 +45,12 @@ public sealed class MainViewModel : ViewModelBase
     private string _telegramProxyUpdateStatus = "Прокси установится автоматически при первом запуске.";
     private double _telegramProxyUpdateProgress;
     private bool _hasTelegramProxyUpdate;
+    private string _appCurrentVersion = GetAppVersion();
+    private string _appLatestVersion = "—";
+    private string _appReleaseNotes = "Нажмите «Проверить обновления», чтобы получить информацию о новой версии приложения.";
+    private string _appUpdateStatus = "Обновления приложения ещё не проверялись.";
+    private double _appUpdateProgress;
+    private bool _hasAppUpdate;
     private string _youTubeStatus = "Не проверено";
     private string _discordStatus = "Не проверено";
 
@@ -74,6 +82,8 @@ public sealed class MainViewModel : ViewModelBase
         OpenInTelegramCommand = new RelayCommand(OpenInTelegram, () => !IsBusy && TelegramProxyIsRunning);
         CheckUpdatesCommand = new AsyncRelayCommand(() => CheckUpdatesAsync(false), () => !IsBusy);
         InstallUpdateCommand = new AsyncRelayCommand(InstallUpdateAsync, () => !IsBusy && HasUpdate);
+        CheckAppUpdatesCommand = new AsyncRelayCommand(() => CheckAppUpdatesAsync(false), () => !IsBusy);
+        InstallAppUpdateCommand = new AsyncRelayCommand(InstallAppUpdateAsync, () => !IsBusy && HasAppUpdate);
         CheckTelegramProxyUpdatesCommand = new AsyncRelayCommand(() => CheckTelegramProxyUpdatesAsync(false), () => !IsBusy);
         InstallTelegramProxyUpdateCommand = new AsyncRelayCommand(InstallTelegramProxyUpdateAsync, () => !IsBusy && HasTelegramProxyUpdate);
         RunDiagnosticsCommand = new AsyncRelayCommand(RunDiagnosticsAsync, () => !IsBusy);
@@ -88,6 +98,7 @@ public sealed class MainViewModel : ViewModelBase
         CheckConnectionsCommand = new AsyncRelayCommand(CheckConnectionsAsync, () => !IsBusy);
         OpenGitHubCommand = new RelayCommand(() => OpenUrl("https://github.com/Flowseal/zapret-discord-youtube"));
         OpenReleaseCommand = new RelayCommand(() => OpenUrl(_latestRelease?.PageUrl ?? "https://github.com/Flowseal/zapret-discord-youtube/releases/latest"));
+        OpenAppReleaseCommand = new RelayCommand(() => OpenUrl(_latestAppRelease?.PageUrl ?? "https://github.com/invayt61/ZapretControl/releases/latest"));
         OpenTelegramProxyGitHubCommand = new RelayCommand(() => OpenUrl("https://github.com/Flowseal/tg-ws-proxy"));
         OpenTelegramProxyReleaseCommand = new RelayCommand(() => OpenUrl(_latestTelegramProxyRelease?.PageUrl ?? "https://github.com/Flowseal/tg-ws-proxy/releases/latest"));
         OpenListsFolderCommand = new RelayCommand(() => Process.Start(new ProcessStartInfo("explorer.exe", _strategies.ListsPath) { UseShellExecute = true }));
@@ -107,6 +118,7 @@ public sealed class MainViewModel : ViewModelBase
     public ObservableCollection<StrategyInfo> FilteredStrategies { get; } = new();
     public ObservableCollection<DiagnosticItem> Diagnostics { get; } = new();
     public ObservableCollection<UserListDefinition> UserLists { get; }
+    public event Action? RestartRequested;
 
     public AsyncRelayCommand StartStopCommand { get; }
     public AsyncRelayCommand StartAllCommand { get; }
@@ -116,6 +128,8 @@ public sealed class MainViewModel : ViewModelBase
     public RelayCommand OpenInTelegramCommand { get; }
     public AsyncRelayCommand CheckUpdatesCommand { get; }
     public AsyncRelayCommand InstallUpdateCommand { get; }
+    public AsyncRelayCommand CheckAppUpdatesCommand { get; }
+    public AsyncRelayCommand InstallAppUpdateCommand { get; }
     public AsyncRelayCommand CheckTelegramProxyUpdatesCommand { get; }
     public AsyncRelayCommand InstallTelegramProxyUpdateCommand { get; }
     public AsyncRelayCommand RunDiagnosticsCommand { get; }
@@ -126,6 +140,7 @@ public sealed class MainViewModel : ViewModelBase
     public AsyncRelayCommand CheckConnectionsCommand { get; }
     public RelayCommand OpenGitHubCommand { get; }
     public RelayCommand OpenReleaseCommand { get; }
+    public RelayCommand OpenAppReleaseCommand { get; }
     public RelayCommand OpenTelegramProxyGitHubCommand { get; }
     public RelayCommand OpenTelegramProxyReleaseCommand { get; }
     public RelayCommand OpenListsFolderCommand { get; }
@@ -162,6 +177,22 @@ public sealed class MainViewModel : ViewModelBase
     public double UpdateProgress { get => _updateProgress; private set => SetProperty(ref _updateProgress, value); }
     public bool HasUpdate { get => _hasUpdate; private set { if (SetProperty(ref _hasUpdate, value)) { OnPropertyChanged(nameof(UpdateButtonText)); RefreshCommands(); } } }
     public string UpdateButtonText => HasUpdate ? "Установить обновление" : "Обновлений нет";
+    public string AppCurrentVersion { get => _appCurrentVersion; private set => SetProperty(ref _appCurrentVersion, value); }
+    public string AppLatestVersion { get => _appLatestVersion; private set => SetProperty(ref _appLatestVersion, value); }
+    public string AppReleaseNotes { get => _appReleaseNotes; private set => SetProperty(ref _appReleaseNotes, value); }
+    public string AppUpdateStatus { get => _appUpdateStatus; private set => SetProperty(ref _appUpdateStatus, value); }
+    public double AppUpdateProgress { get => _appUpdateProgress; private set => SetProperty(ref _appUpdateProgress, value); }
+    public bool HasAppUpdate
+    {
+        get => _hasAppUpdate;
+        private set
+        {
+            if (!SetProperty(ref _hasAppUpdate, value)) return;
+            OnPropertyChanged(nameof(AppUpdateButtonText));
+            RefreshCommands();
+        }
+    }
+    public string AppUpdateButtonText => HasAppUpdate ? "Обновить и перезапустить" : "Обновлений нет";
     public string TelegramProxyCurrentVersion
     {
         get => _telegramProxyCurrentVersion;
@@ -238,7 +269,9 @@ public sealed class MainViewModel : ViewModelBase
                 if (match != null) SelectedStrategy = match;
             }
             Settings.IpSetMode = _strategies.GetIpSetMode();
-            _log.Info($"Zapret Control запущен. Ядро {CurrentVersion}.");
+            await _telegramProxy.ApplyAutoStartAsync(Settings.TelegramProxyAutoStart);
+            _log.Info($"Zapret Control {AppCurrentVersion} запущен. Ядро {CurrentVersion}.");
+            if (Settings.TelegramProxyAutoStart && !TelegramProxyIsRunning) await TelegramProxyStartStopAsync();
             await AutoUpdateAsync();
         }
         catch (Exception ex) { _log.Error("Инициализация: " + ex.Message); }
@@ -252,11 +285,16 @@ public sealed class MainViewModel : ViewModelBase
             await CheckUpdatesAsync(true);
             if (HasUpdate && Settings.AutoInstallUpdates && !IsBusy) await InstallUpdateAsync();
         }
-        if (!_telegramProxy.IsInstalled || IsBusy) return;
-        if (!Settings.LastTelegramProxyUpdateCheck.HasValue || (DateTime.UtcNow - Settings.LastTelegramProxyUpdateCheck.Value).TotalHours >= 6)
+        if (_telegramProxy.IsInstalled && !IsBusy && (!Settings.LastTelegramProxyUpdateCheck.HasValue || (DateTime.UtcNow - Settings.LastTelegramProxyUpdateCheck.Value).TotalHours >= 6))
         {
             await CheckTelegramProxyUpdatesAsync(true);
             if (HasTelegramProxyUpdate && Settings.AutoInstallUpdates && !IsBusy) await InstallTelegramProxyUpdateAsync();
+        }
+        if (IsBusy) return;
+        if (!Settings.LastAppUpdateCheck.HasValue || (DateTime.UtcNow - Settings.LastAppUpdateCheck.Value).TotalHours >= 6)
+        {
+            await CheckAppUpdatesAsync(true);
+            if (HasAppUpdate && Settings.AutoInstallUpdates && !IsBusy) await InstallAppUpdateAsync();
         }
     }
 
@@ -275,6 +313,22 @@ public sealed class MainViewModel : ViewModelBase
             await _zapret.StartAsync(SelectedStrategy, Settings);
             RefreshRunningStatus();
             _ = CheckConnectionsAsync();
+        });
+    }
+
+    internal async Task ToggleAllAsync()
+    {
+        if (IsBusy) return;
+        if (!IsRunning && !TelegramProxyIsRunning)
+        {
+            await StartAllAsync();
+            return;
+        }
+        await RunBusy("Останавливаем обход и Telegram-прокси…", async () =>
+        {
+            if (IsRunning) await _zapret.StopAsync();
+            if (TelegramProxyIsRunning) await _telegramProxy.StopAsync();
+            RefreshRunningStatus();
         });
     }
 
@@ -355,6 +409,7 @@ public sealed class MainViewModel : ViewModelBase
         if (restartProxy) await _telegramProxy.StopAsync();
         if (!Settings.AutoStart) await _zapret.DeleteServiceAsync();
         _strategies.ApplySettings(Settings);
+        await _telegramProxy.ApplyAutoStartAsync(Settings.TelegramProxyAutoStart);
         if (shouldRun && SelectedStrategy != null) await _zapret.StartAsync(SelectedStrategy, Settings);
         if (restartProxy)
         {
@@ -419,6 +474,40 @@ public sealed class MainViewModel : ViewModelBase
                 UpdateStatus += " Обход перезапущен.";
             }
             RefreshRunningStatus();
+        }, true);
+    }
+
+    private async Task CheckAppUpdatesAsync(bool automatic)
+    {
+        await RunBusy("Проверяем обновления приложения…", async () =>
+        {
+            AppUpdateStatus = "Запрашиваем последний релиз Zapret Control…";
+            AppUpdateProgress = 0;
+            var release = await _appUpdates.CheckAsync();
+            _latestAppRelease = release;
+            AppLatestVersion = release.Version;
+            AppReleaseNotes = string.IsNullOrWhiteSpace(release.Notes) ? "Автор не добавил описание релиза." : release.Notes;
+            HasAppUpdate = UpdateService.IsNewer(release.Version, AppCurrentVersion);
+            Settings.LastAppUpdateCheck = DateTime.UtcNow;
+            Settings.LatestAppVersion = release.Version;
+            _settingsService.Save(Settings);
+            AppUpdateStatus = HasAppUpdate ? $"Доступна новая версия {release.Version}." : $"Установлена последняя версия {AppCurrentVersion}.";
+            _log.Info("Zapret Control: " + AppUpdateStatus);
+        }, !automatic);
+    }
+
+    private async Task InstallAppUpdateAsync()
+    {
+        if (_latestAppRelease == null || !HasAppUpdate) return;
+        await RunBusy("Обновляем Zapret Control…", async () =>
+        {
+            AppUpdateStatus = "Скачиваем и проверяем новую версию приложения…";
+            AppUpdateProgress = 0;
+            var progress = new Progress<double>(value => AppUpdateProgress = value);
+            var prepared = await _appUpdates.PrepareAsync(_latestAppRelease, progress);
+            AppUpdateStatus = $"Версия {_latestAppRelease.Version} готова. Приложение перезапустится.";
+            _appUpdates.StartUpdater(prepared);
+            RestartRequested?.Invoke();
         }, true);
     }
 
@@ -544,6 +633,8 @@ public sealed class MainViewModel : ViewModelBase
         OpenInTelegramCommand.RaiseCanExecuteChanged();
         CheckUpdatesCommand.RaiseCanExecuteChanged();
         InstallUpdateCommand.RaiseCanExecuteChanged();
+        CheckAppUpdatesCommand.RaiseCanExecuteChanged();
+        InstallAppUpdateCommand.RaiseCanExecuteChanged();
         CheckTelegramProxyUpdatesCommand.RaiseCanExecuteChanged();
         InstallTelegramProxyUpdateCommand.RaiseCanExecuteChanged();
         RunDiagnosticsCommand.RaiseCanExecuteChanged();
@@ -553,6 +644,7 @@ public sealed class MainViewModel : ViewModelBase
         CheckConnectionsCommand.RaiseCanExecuteChanged();
     }
 
+    private static string GetAppVersion() => System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "0.0.0";
     private static void OpenUrl(string url) => Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     private static void ShowError(string title, Exception ex) => System.Windows.MessageBox.Show(ex.Message, title, System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
 }

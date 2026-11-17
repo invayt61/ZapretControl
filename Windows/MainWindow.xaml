@@ -206,15 +206,32 @@
                     <Grid Style="{StaticResource Page}" Visibility="{Binding CurrentPage, Converter={StaticResource PageVisibility}, ConverterParameter=3}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
                             <TextBlock Text="Обновления" FontSize="28" FontWeight="SemiBold" />
-                            <TextBlock Text="Официальные релизы Flowseal · проверка SHA-256 · сохранение настроек" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,22" />
+                            <TextBlock Text="Приложение, zapret и TG WS Proxy · проверка SHA-256 · сохранение настроек" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,22" />
                             <Border Style="{StaticResource Card}" Margin="0,0,0,22" Padding="18">
                                 <StackPanel>
                                     <TextBlock Text="Автоматические обновления" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,13" />
                                     <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.CheckForUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Проверять новые версии на GitHub каждые 6 часов" />
-                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Автоматически устанавливать обновления ядра и Telegram-прокси" Margin="0,16,0,0" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Автоматически устанавливать обновления приложения, ядра и Telegram-прокси" Margin="0,16,0,0" />
                                     <TextBlock Text="Переключатели сохраняются сразу. Если автоустановка выключена, доступные обновления только показываются здесь." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="52,12,0,0" />
                                 </StackPanel>
                             </Border>
+                            <TextBlock Text="Приложение Zapret Control" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource Card}" Margin="0,0,9,0"><StackPanel><TextBlock Text="Установлено" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding AppCurrentVersion, StringFormat='v{0}'}" FontSize="30" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel></Border>
+                                <Border Grid.Column="1" Style="{StaticResource Card}" Margin="9,0,0,0"><StackPanel><TextBlock Text="Последний релиз" Foreground="{StaticResource MutedBrush}" /><TextBlock Text="{Binding AppLatestVersion, StringFormat='v{0}'}" FontSize="30" FontWeight="SemiBold" Margin="0,7,0,0" /></StackPanel></Border>
+                            </Grid>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal"><Button Content="Проверить обновления" Command="{Binding CheckAppUpdatesCommand}" Style="{StaticResource PrimaryButton}" /><Button Content="{Binding AppUpdateButtonText}" Command="{Binding InstallAppUpdateCommand}" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" /><Button Content="Страница релиза" Command="{Binding OpenAppReleaseCommand}" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" /></StackPanel>
+                                    <TextBlock Text="{Binding AppUpdateStatus}" Margin="0,18,0,9" TextWrapping="Wrap" />
+                                    <ProgressBar Value="{Binding AppUpdateProgress, Mode=OneWay}" Minimum="0" Maximum="100" Height="7" Foreground="{StaticResource AccentBrush}" Background="#252D3D" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                                <StackPanel><TextBlock Text="Что нового в приложении" FontSize="18" FontWeight="SemiBold" /><TextBox Text="{Binding AppReleaseNotes, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" Background="Transparent" Foreground="{StaticResource MutedBrush}" BorderThickness="0" Padding="0" Margin="0,12,0,0" MinHeight="90" VerticalScrollBarVisibility="Auto" /></StackPanel>
+                            </Border>
+                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,26" />
                             <TextBlock Text="Ядро zapret" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12" />
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
@@ -293,6 +310,8 @@
                             <Border Style="{StaticResource Card}" Margin="0,18,0,0">
                                 <StackPanel>
                                     <TextBlock Text="Telegram-прокси" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.TelegramProxyAutoStart}" Content="Запускать Telegram-прокси автоматически при входе в Windows" />
+                                    <TextBlock Text="Zapret Control запустится скрытым в трее и включит прокси без запроса UAC." Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="52,8,0,16" TextWrapping="Wrap" />
                                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="220" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                                         <StackPanel><TextBlock Text="Локальный порт" FontWeight="SemiBold" Margin="0,0,0,7" /><TextBox Style="{StaticResource Input}" Text="{Binding Settings.TelegramProxyPort}" /></StackPanel>
                                         <TextBlock Grid.Column="1" Text="Прокси работает внутри Zapret Control без отдельного значка в трее. Секрет создаётся один раз и сохраняется при обновлениях." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="24,0,0,0" />
@@ -304,7 +323,7 @@
                                 <StackPanel>
                                     <TextBlock Text="Обновления" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16" />
                                     <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.CheckForUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Проверять новые релизы zapret и TG WS Proxy каждые 6 часов" />
-                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Устанавливать обновления zapret и Telegram-прокси автоматически" Margin="0,18,0,0" />
+                                    <CheckBox Style="{StaticResource Toggle}" IsChecked="{Binding Settings.AutoInstallUpdates}" Command="{Binding SaveUpdatePreferencesCommand}" Content="Устанавливать обновления приложения, zapret и Telegram-прокси автоматически" Margin="0,18,0,0" />
                                     <TextBlock Text="Эти два переключателя сохраняются сразу. Используются официальные релизы Flowseal и сборка интегрированного движка Zapret Control; SHA-256 проверяется перед установкой." Foreground="{StaticResource MutedBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,14,0,0" />
                                 </StackPanel>
                             </Border>
