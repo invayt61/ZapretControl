@@ -58,6 +58,8 @@ public sealed class TelegramProxyService
         if (IsRunning) return;
         if (!IsInstalled || !IsIntegrated) throw new FileNotFoundException("Интегрированный Telegram-прокси не установлен.", ExecutablePath);
         PrepareConfiguration(settings.TelegramProxyPort);
+        await StopOtherInstancesAsync();
+        EnsurePortAvailable(settings.TelegramProxyPort);
         var startInfo = new ProcessStartInfo
         {
             FileName = ExecutablePath,
@@ -97,6 +99,34 @@ public sealed class TelegramProxyService
             finally { process.Dispose(); }
         }
         if (stopped) _log.Info("Telegram-прокси остановлен.");
+    }
+
+    private async Task StopOtherInstancesAsync()
+    {
+        foreach (var process in Process.GetProcessesByName("TgWsProxy"))
+        {
+            try
+            {
+                var path = process.MainModule?.FileName;
+                if (string.Equals(path, ExecutablePath, StringComparison.OrdinalIgnoreCase)) continue;
+                process.Kill(true);
+                await process.WaitForExitAsync();
+                _log.Info("Предыдущая копия Telegram-прокси остановлена.");
+            }
+            catch (Exception ex) { _log.Error("Не удалось остановить предыдущую копию Telegram-прокси: " + ex.Message); }
+            finally { process.Dispose(); }
+        }
+    }
+
+    private static void EnsurePortAvailable(int port)
+    {
+        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, port);
+        try { listener.Start(); }
+        catch (System.Net.Sockets.SocketException ex) when (ex.ErrorCode == 10048)
+        {
+            throw new InvalidOperationException($"Порт {port} уже занят другой программой. Закройте её или выберите другой порт в настройках Telegram-прокси.");
+        }
+        finally { listener.Stop(); }
     }
 
     public async Task ApplyAutoStartAsync(bool enabled)

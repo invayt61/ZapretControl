@@ -125,7 +125,22 @@ public partial class App : System.Windows.Application
                 }
                 finally { await proxy.StopAsync(); }
                 if (proxy.IsRunning) throw new InvalidOperationException("Telegram-прокси не остановился.");
-                Console.WriteLine("Telegram-прокси проверен: скачивание, SHA-256, portable-конфиг, запуск, MTProto-порт и остановка — успешно.");
+
+                var legacyRoot = Path.Combine(temporary, "legacy-telegram-proxy");
+                Directory.CreateDirectory(legacyRoot);
+                File.Copy(proxy.ExecutablePath, Path.Combine(legacyRoot, "TgWsProxy.exe"));
+                File.Copy(proxy.IntegratedMarkerPath, Path.Combine(legacyRoot, "integrated-engine.marker"));
+                var legacyProxy = new TelegramProxyService(new LogService(), legacyRoot);
+                try
+                {
+                    await legacyProxy.StartAsync(settings);
+                    if (!legacyProxy.IsRunning) throw new InvalidOperationException("Старая копия Telegram-прокси не запустилась для проверки.");
+                    await proxy.StartAsync(settings);
+                    if (legacyProxy.IsRunning) throw new InvalidOperationException("Старая копия Telegram-прокси не была остановлена.");
+                    if (!proxy.IsRunning) throw new InvalidOperationException("Новый Telegram-прокси не запустился после остановки старой копии.");
+                }
+                finally { await proxy.StopAsync(); await legacyProxy.StopAsync(); }
+                Console.WriteLine("Telegram-прокси проверен: скачивание, SHA-256, запуск, порт, остановка и замена старой копии — успешно.");
             }
             return 0;
         }

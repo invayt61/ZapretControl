@@ -10,7 +10,7 @@
     <RootNamespace>ZapretControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <AssemblyTitle>Zapret Control</AssemblyTitle>
     <Description>Windows-интерфейс для zapret-discord-youtube с интегрированным TG WS Proxy</Description>
   </PropertyGroup>

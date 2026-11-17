@@ -98,8 +98,6 @@ public sealed class ZapretService
         {
             try
             {
-                var path = process.MainModule?.FileName;
-                if (!string.Equals(path, _strategies.WinwsPath, StringComparison.OrdinalIgnoreCase)) continue;
                 process.Kill(true);
                 await process.WaitForExitAsync();
             }
