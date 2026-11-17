@@ -12,5 +12,6 @@ $publish = Join-Path $projectRoot 'ZapretControl'
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed for win-x64' }
 
 $archive = Join-Path $projectRoot 'ZapretControl-win-x64.zip'
-Compress-Archive -Path $publish -DestinationPath $archive -CompressionLevel Optimal -Force
+$packageItems = Get-ChildItem -Path $publish -Force | Where-Object { $_.Name -notin @('telegram-proxy', '.updates') }
+Compress-Archive -Path $packageItems.FullName -DestinationPath $archive -CompressionLevel Optimal -Force
 Get-FileHash $archive -Algorithm SHA256 | Format-List
